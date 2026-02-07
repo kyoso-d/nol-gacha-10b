@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>nol 10連ガチャ - 連続演出ver</title>
+    <style>
+        body, html {
+            margin: 0; padding: 0; height: 100%; width: 100%;
+            display: flex; justify-content: center; align-items: center;
+            background-color: #f8f9fa; font-family: sans-serif;
+        }
+        .container { width: 95%; max-width: 500px; padding: 10px; box-sizing: border-box; }
+        #gacha-machine {
+            background: white; padding: 30px 20px; border-radius: 30px;
+            box-shadow: 0 20px 45px rgba(0,0,0,0.12); text-align: center;
+        }
+        #status { font-size: 1.8rem; font-weight: bold; color: #333; margin-bottom: 20px; }
+        #result-box {
+            background: #f0f2f5; border-radius: 20px; min-height: 380px; /* 10個入るよう少し高く */
+            display: flex; flex-direction: column; justify-content: flex-start;
+            align-items: center; margin-bottom: 25px; padding: 15px; overflow: hidden;
+        }
+        .result-item {
+            font-size: 1rem; font-weight: bold; margin: 4px 0;
+            padding: 8px; border-bottom: 1px solid #ddd; width: 100%;
+            list-style: none; text-align: left; box-sizing: border-box;
+            /* 出現アニメーション */
+            animation: slideIn 0.3s ease-out forwards;
+            opacity: 0;
+        }
+        @keyframes slideIn {
+            from { opacity: 0; transform: translateX(-10px); }
+            to { opacity: 1; transform: translateX(0); }
+        }
+        .rare { color: #ff5e78; background: rgba(255,94,120,0.05); }
+        #gacha-btn {
+            display: block; width: 100%; padding: 20px;
+            font-size: 1.8rem; font-weight: bold; background-color: #ff5e78;
+            color: white; border: none; border-radius: 100px; cursor: pointer;
+            box-shadow: 0 7px 0 #d43f56; transition: all 0.2s;
+        }
+        #gacha-btn:active { transform: translateY(5px); box-shadow: none; }
+        #gacha-btn:disabled { background-color: #ffadb9; box-shadow: none; }
+    </style>
+    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+</head>
+<body>
+
+    <div class="container">
+        <div id="gacha-machine">
+            <p id="status">運試し！10連ガチャ</p>
+            <div id="result-box">
+                <div id="result-list" style="width: 100%;"></div>
+            </div>
+            <button id="gacha-btn">10連ガチャを回す</button>
+        </div>
+    </div>
+
+    <script>
+        const btn = document.getElementById('gacha-btn');
+        const resultList = document.getElementById('result-list');
+        const statusDisp = document.getElementById('status');
+
+        const gachaList = [
+            { name: "✨️✨300,000nol✨✨", weight: 1 },
+            { name: "天体望遠鏡セット", weight: 1 },
+            { name: "○○屋フルーツジュース、ゼリー詰め合わせ", weight: 1 },
+            { name: "BBQセット(グリル等一式)", weight: 1 },
+            { name: "等身大「のーどちゃん」ぬいぐるみ", weight: 1 },
+            { name: "✨100,000nol✨", weight: 3 },
+            { name: "✨50,000nol✨", weight: 5 },
+            { name: "✨30,000nol✨", weight: 7 },
+            { name: "ハーゲンダッツアイスセット(6個入り)", weight: 7 },
+            { name: "10,000nol", weight: 8 },
+            { name: "光るキーホルダー「のーどちゃん」", weight: 10 },
+            { name: "「のーどちゃん」サブレ", weight: 15 },
+            { name: "5,000nol", weight: 10 },
+            { name: "1,000nol", weight: 3 },
+            { name: "真新しい雑巾", weight: 4 },
+            { name: "ポケットティッシュ", weight: 23 },
+        ];
+
+        // 待機用ヘルパー関数
+        const sleep = (ms) => new Promise(resolve => setTimeout(resolve, ms));
+
+        btn.onclick = async function() {
+            btn.disabled = true;
+            statusDisp.innerText = "抽選中...";
+            resultList.innerHTML = ""; // リセット
+
+            // 1. 抽選ロジック（先に10個決めておく）
+            const selectedItems = [];
+            for (let i = 0; i < 10; i++) {
+                const totalWeight = gachaList.reduce((sum, item) => sum + item.weight, 0);
+                let randomNum = Math.random() * totalWeight;
+                for (const item of gachaList) {
+                    if (randomNum < item.weight) {
+                        selectedItems.push(item);
+                        break;
+                    }
+                    randomNum -= item.weight;
+                }
+            }
+
+            // 2. 順番に表示する演出
+            for (let i = 0; i < selectedItems.length; i++) {
+                const item = selectedItems[i];
+                const div = document.createElement('div');
+                div.className = "result-item";
+                if (item.weight <= 5) div.classList.add('rare');
+                div.innerText = `${i + 1}. ${item.name}`;
+                
+                resultList.appendChild(div);
+
+                // レアアイテムが出た瞬間に少しだけ紙吹雪（盛り上げ）
+                if (item.weight <= 1) {
+                    confetti({ particleCount: 40, spread: 50, origin: { y: 0.8 } });
+                }
+
+                await sleep(300); // 0.3秒待機
+            }
+
+            // 3. 完了後の演出
+            statusDisp.innerText = "結果発表！";
+            
+            // 30万nolがあるかチェックして最後に特大の紙吹雪
+            if (selectedItems.some(item => item.name.includes("300,000nol"))) {
+                confetti({ particleCount: 200, spread: 100, origin: { y: 0.6 } });
+            }
+
+            btn.disabled = false;
+        };
+    </script>
+</body>
+</html>
